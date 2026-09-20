@@ -21,3 +21,45 @@ paths:
     post: {summary: 创建价格预警}
   /api/v1/budgets:
     post: {summary: 保存装修预算}
+  /api/v1/lock-orders:
+    get:
+      summary: 查询当前用户的锁价单（含已失效单及其提交价快照）
+      responses:
+        '200': {description: 锁价单列表，按创建时间倒序}
+    post:
+      summary: 提交锁价单（2-4 款对比材料，每款选择一家有货且达起订量的报价）
+      description: >
+        闭环规则：任一款材料的报价不存在、缺货/非在售或数量未达起订量时整单拒绝（422），
+        事务回滚不落任何记录；每款材料同一时刻仅允许一张有效锁价单，重复提交返回 409。
+        落库价格为提交时刻的报价快照，供应商之后改价不会回写。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  minItems: 2
+                  maxItems: 4
+                  items:
+                    type: object
+                    required: [product_id, offer_id, quantity]
+                    properties:
+                      product_id: {type: integer}
+                      offer_id: {type: integer}
+                      quantity: {type: integer, minimum: 1}
+      responses:
+        '200': {description: 锁价成功，返回单号、明细与提交价快照}
+        '409': {description: 某款材料已存在有效锁价单（code 40901）}
+        '422': {description: 整单拒绝：报价不存在/缺货非在售(42201)/未达起订量(42202)}
+  /api/v1/supplier/offers/{id}/status:
+    patch:
+      summary: 供应商更新报价库存状态（有货/缺货/停产）
+      description: >
+        当报价被置为 out_of_stock 或 discontinued 时，所有引用该报价的有效锁价单
+        在同一事务内立即失效；之后 GET /lock-orders 只能回读到 invalid 状态。
+      responses:
+        '200': {description: 更新成功，关联锁价单已同步失效}

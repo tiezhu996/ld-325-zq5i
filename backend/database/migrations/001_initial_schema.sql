@@ -1,2 +1,14 @@
 -- GORM AutoMigrate creates the initial schema at startup. This file documents the managed migration boundary.
 -- Tables: categories, products, suppliers, offers, price_histories, favorites, price_alerts, budgets.
+--
+-- 002 锁价单闭环（随 GORM AutoMigrate 自动创建）:
+--   lock_orders(id, order_no UNIQUE, user_id, status[active|invalid], invalid_reason, timestamps)
+--   lock_order_items(id, lock_order_id, user_id, product_id, product_name, offer_id,
+--                    supplier_id, supplier_name, locked_unit_price, quantity, moq, active, timestamps)
+--
+--   locked_unit_price 保存提交时刻的报价快照，供应商改价不回写。
+--   部分唯一索引（PostgreSQL/SQLite 均支持）保证「每用户每款材料至多一张有效锁价单」:
+--     CREATE UNIQUE INDEX idx_lock_items_user_product_active
+--       ON lock_order_items (user_id, product_id) WHERE active = true;
+--   供应商把报价置为 out_of_stock/discontinued 时，引用该报价的 active 锁价单
+--   与其明细 active 标记在同一事务内更新为失效，刷新只回读到 invalid。

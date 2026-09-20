@@ -11,6 +11,7 @@ import (
 	apperrors "github.com/blueship581/cybuildprice/backend/internal/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"gorm.io/gorm"
 )
 
 func ErrorHandler() gin.HandlerFunc {
@@ -22,11 +23,15 @@ func ErrorHandler() gin.HandlerFunc {
 		last := c.Errors.Last()
 		err := last.Err
 		code, status, message := constants.ErrorInternal, http.StatusInternalServerError, "internal server error"
-		if errors.Is(err, apperrors.ErrUnauthorized) {
+		var business *apperrors.BusinessError
+		switch {
+		case errors.As(err, &business):
+			code, status, message = business.Code, business.Status, business.Message
+		case errors.Is(err, apperrors.ErrUnauthorized):
 			code, status, message = constants.ErrorUnauthorized, http.StatusUnauthorized, "unauthorized"
-		} else if errors.Is(err, apperrors.ErrNotFound) {
+		case errors.Is(err, apperrors.ErrNotFound) || errors.Is(err, gorm.ErrRecordNotFound):
 			code, status, message = constants.ErrorNotFound, http.StatusNotFound, "resource not found"
-		} else if isClientError(err) || last.Type == gin.ErrorTypeBind {
+		case isClientError(err) || last.Type == gin.ErrorTypeBind:
 			code, status, message = constants.ErrorValidation, http.StatusBadRequest, "validation failed"
 		}
 		c.JSON(status, dto.Response{Code: code, Message: message})

@@ -1,6 +1,8 @@
 package router
 
 import (
+	"log/slog"
+
 	"github.com/blueship581/cybuildprice/backend/internal/constants"
 	"github.com/blueship581/cybuildprice/backend/internal/handler"
 	"github.com/blueship581/cybuildprice/backend/internal/middleware"
@@ -9,16 +11,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
-	"log/slog"
 )
 
 func New(db *gorm.DB, logger *slog.Logger, jwtSecret string) *gin.Engine {
 	v := validator.New()
+	txManager := repository.NewTxManager(db)
 	product := handler.NewProductHandler(service.NewProductService(repository.NewProductRepository(db), logger), v)
-	offers := handler.NewOfferHandler(service.NewOfferService(repository.NewOfferRepository(db)), v)
+	offers := handler.NewOfferHandler(service.NewOfferService(repository.NewOfferRepository(db), txManager), v)
 	trend := handler.NewTrendHandler(service.NewPriceHistoryService(repository.NewPriceHistoryRepository(db)))
 	user := handler.NewUserDataHandler(service.NewUserDataService(repository.NewUserDataRepository(db)), v)
 	supplier := handler.NewSupplierHandler(service.NewSupplierService(repository.NewSupplierRepository(db)), v)
+	locks := handler.NewLockOrderHandler(service.NewLockOrderService(txManager), v)
 	r := gin.New()
 	r.Use(gin.Recovery(), middleware.RequestID(), middleware.RequestLogger(logger), middleware.ErrorHandler(), middleware.JWTOrDemoAuth(jwtSecret))
 	r.GET(constants.HealthPath, func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
@@ -35,5 +38,7 @@ func New(db *gorm.DB, logger *slog.Logger, jwtSecret string) *gin.Engine {
 	api.POST("/favorites", user.CreateFavorite)
 	api.POST("/alerts", user.CreateAlert)
 	api.POST("/budgets", user.CreateBudget)
+	api.GET("/lock-orders", locks.List)
+	api.POST("/lock-orders", locks.Create)
 	return r
 }
