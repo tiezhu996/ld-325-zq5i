@@ -31,6 +31,7 @@ const (
 	RoleContextKey      = "role"
 	DemoUserID          = "demo-user"
 	HistorySeedDays     = 365
+	DialectorPostgres   = "postgres"
 )
 
 var DemoTokenLifetime = time.Hour * 24

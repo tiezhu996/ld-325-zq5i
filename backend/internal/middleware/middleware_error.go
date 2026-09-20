@@ -22,8 +22,21 @@ func ErrorHandler() gin.HandlerFunc {
 		last := c.Errors.Last()
 		err := last.Err
 		code, status, message := constants.ErrorInternal, http.StatusInternalServerError, "internal server error"
-		if errors.Is(err, apperrors.ErrUnauthorized) {
+		var business *apperrors.BusinessError
+		if errors.As(err, &business) {
+			code = business.Code
+			if code == 0 {
+				code = constants.ErrorValidation
+			}
+			message = business.Message
+			status = http.StatusBadRequest
+			if code == constants.ErrorConflict {
+				status = http.StatusConflict
+			}
+		} else if errors.Is(err, apperrors.ErrUnauthorized) {
 			code, status, message = constants.ErrorUnauthorized, http.StatusUnauthorized, "unauthorized"
+		} else if errors.Is(err, apperrors.ErrConflict) {
+			code, status, message = constants.ErrorConflict, http.StatusConflict, "resource conflict"
 		} else if errors.Is(err, apperrors.ErrNotFound) {
 			code, status, message = constants.ErrorNotFound, http.StatusNotFound, "resource not found"
 		} else if isClientError(err) || last.Type == gin.ErrorTypeBind {

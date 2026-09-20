@@ -4,3 +4,23 @@ export type Product = { ID: number; Name: string; Brand: string; Model: string; 
 export type ApiEnvelope<T> = { code: number; message: string; data: T };
 export type TrendPoint = { Price: number; RecordedAt: string };
 export type Trend = { range: string; highest: number; lowest: number; average: number; points: TrendPoint[] };
+export type PriceLockItem = {
+  ID: number;
+  ProductID: number;
+  ProductName: string;
+  OfferID: number;
+  SupplierName: string;
+  UnitPriceSnapshot: number;
+  MOQSnapshot: number;
+  QuantitySnapshot: number;
+  Status: 'active' | 'invalid';
+};
+export type PriceLock = {
+  ID: number;
+  OrderNo: string;
+  UserID: string;
+  Status: 'active' | 'invalid';
+  InvalidReason: string;
+  CreatedAt: string;
+  Items: PriceLockItem[];
+};

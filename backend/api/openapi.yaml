@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: 筑价建材比价 API
-  version: 1.0.0
+  version: 1.1.0
 paths:
   /healthz:
     get:
@@ -21,3 +21,40 @@ paths:
     post: {summary: 创建价格预警}
   /api/v1/budgets:
     post: {summary: 保存装修预算}
+  /api/v1/price-locks:
+    get:
+      summary: 查询当前用户锁价单（含失效状态与提交价快照，刷新可回读）
+      responses:
+        '200': {description: 成功}
+    post:
+      summary: 创建锁价单（2–4 款材料，每家报价须有货且达到起订量，任一无效整单拒绝）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  minItems: 2
+                  maxItems: 4
+                  items:
+                    type: object
+                    required: [product_id, offer_id, quantity]
+                    properties:
+                      product_id: {type: integer, minimum: 1}
+                      offer_id: {type: integer, minimum: 1}
+                      quantity: {type: integer, minimum: 1}
+      responses:
+        '201': {description: 锁价成功，返回单号与提交价快照}
+        '400': {description: 报价缺货/非在售、未达起订量或数量不合法，整单拒绝且不落记录}
+        '409': {description: 其中材料已存在有效锁价单（重复提交冲突）}
+  /api/v1/supplier/offers/{id}/status:
+    patch:
+      summary: 供应商更新报价库存状态；置为缺货/非在售时引用该报价的锁价单立即失效
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {description: 更新成功，关联锁价单已级联失效}

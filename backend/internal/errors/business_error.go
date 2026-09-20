@@ -6,6 +6,7 @@ var (
 	ErrNotFound     = errors.New("resource not found")
 	ErrInvalidInput = errors.New("invalid request input")
 	ErrUnauthorized = errors.New("unauthorized")
+	ErrConflict     = errors.New("resource conflict")
 )
 
 type BusinessError struct {

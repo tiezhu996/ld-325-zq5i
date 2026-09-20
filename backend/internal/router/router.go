@@ -14,11 +14,15 @@ import (
 
 func New(db *gorm.DB, logger *slog.Logger, jwtSecret string) *gin.Engine {
 	v := validator.New()
-	product := handler.NewProductHandler(service.NewProductService(repository.NewProductRepository(db), logger), v)
-	offers := handler.NewOfferHandler(service.NewOfferService(repository.NewOfferRepository(db)), v)
+	productRepo := repository.NewProductRepository(db)
+	offerRepo := repository.NewOfferRepository(db)
+	lockRepo := repository.NewPriceLockRepository(db)
+	product := handler.NewProductHandler(service.NewProductService(productRepo, logger), v)
+	offers := handler.NewOfferHandler(service.NewOfferService(offerRepo), v)
 	trend := handler.NewTrendHandler(service.NewPriceHistoryService(repository.NewPriceHistoryRepository(db)))
 	user := handler.NewUserDataHandler(service.NewUserDataService(repository.NewUserDataRepository(db)), v)
 	supplier := handler.NewSupplierHandler(service.NewSupplierService(repository.NewSupplierRepository(db)), v)
+	locks := handler.NewPriceLockHandler(service.NewPriceLockService(lockRepo, offerRepo, productRepo), v)
 	r := gin.New()
 	r.Use(gin.Recovery(), middleware.RequestID(), middleware.RequestLogger(logger), middleware.ErrorHandler(), middleware.JWTOrDemoAuth(jwtSecret))
 	r.GET(constants.HealthPath, func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
@@ -35,5 +39,7 @@ func New(db *gorm.DB, logger *slog.Logger, jwtSecret string) *gin.Engine {
 	api.POST("/favorites", user.CreateFavorite)
 	api.POST("/alerts", user.CreateAlert)
 	api.POST("/budgets", user.CreateBudget)
+	api.GET("/price-locks", locks.List)
+	api.POST("/price-locks", locks.Create)
 	return r
 }
